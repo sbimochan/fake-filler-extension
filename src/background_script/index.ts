@@ -1,16 +1,7 @@
 /* eslint-disable no-param-reassign */
 
-import { onAuthStateChange, onOptionsChange } from "src/common/firebase";
-import {
-  CreateContextMenus,
-  GetFakeFillerOptions,
-  GetMessage,
-  SaveFakeFillerOptions,
-  DEFAULT_EMAIL_CUSTOM_FIELD,
-} from "src/common/helpers";
-import { MessageRequest, IProfile, IFakeFillerOptions, FirebaseUser, FirebaseCustomClaims } from "src/types";
-
-let isProEdition = false;
+import { CreateContextMenus, GetFakeFillerOptions, GetMessage, SaveFakeFillerOptions } from "src/common/helpers";
+import { MessageRequest, IProfile, IFakeFillerOptions } from "src/types";
 
 function NotifyTabsOfNewOptions(options: IFakeFillerOptions) {
   chrome.tabs.query({}, (tabs) => {
@@ -18,36 +9,13 @@ function NotifyTabsOfNewOptions(options: IFakeFillerOptions) {
       if (tab && tab.id && tab.id !== chrome.tabs.TAB_ID_NONE) {
         chrome.tabs.sendMessage(
           tab.id,
-          { type: "receiveNewOptions", data: { options, isProEdition } },
+          { type: "receiveNewOptions", data: { options } },
           () => chrome.runtime.lastError
         );
       }
     });
   });
 }
-
-function handleOptionsChange(options: IFakeFillerOptions) {
-  if (isProEdition) {
-    chrome.storage.local.set({ options }, () => {
-      CreateContextMenus(options.enableContextMenu);
-      NotifyTabsOfNewOptions(options);
-    });
-  }
-}
-
-function handleAuthStateChange(user: FirebaseUser, claims: FirebaseCustomClaims) {
-  if (user && claims) {
-    isProEdition = claims.subscribed;
-  } else {
-    isProEdition = false;
-  }
-  GetFakeFillerOptions().then((result) => {
-    NotifyTabsOfNewOptions(result);
-  });
-}
-
-onAuthStateChange(handleAuthStateChange);
-onOptionsChange(handleOptionsChange);
 
 function handleMessage(
   request: MessageRequest,
@@ -57,7 +25,7 @@ function handleMessage(
   switch (request.type) {
     case "getOptions": {
       GetFakeFillerOptions().then((result) => {
-        sendResponse({ options: result, isProEdition });
+        sendResponse({ options: result });
       });
       return true;
     }
@@ -100,7 +68,7 @@ if (chrome.runtime.onInstalled) {
             SaveFakeFillerOptions(options);
           });
         }
-      } catch (ex) {
+      } catch (ex: any) {
         // eslint-disable-next-line no-alert
         window.alert(GetMessage("bgPage_errorMigratingOptions", [ex.message]));
       }
